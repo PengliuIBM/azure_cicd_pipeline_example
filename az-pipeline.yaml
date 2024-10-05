@@ -1,0 +1,12 @@
+# azure-pipelines.yml
+trigger:
+- test  # use test brach to trigger.  you can use main branch by condition
+
+pool:
+  vmImage: 'ubuntu-latest'  # use az ubuntu latested VM
+
+steps:
+- script: |
+    echo "Running on Azure Pipeline"
+    python app.py  # how to run your code here in pipeline.
+  displayName: 'Run a one-line script'

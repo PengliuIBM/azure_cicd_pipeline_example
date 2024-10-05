@@ -1,0 +1,70 @@
+# azure-pipelines.yml
+trigger:
+- test  # Trigger on changes to the test branch
+
+pool:
+  vmImage: 'ubuntu-latest'  # Use Ubuntu virtual machine
+
+variables:
+  ACR_NAME: 'nnpacr01'  # Your ACR name,it's repo name
+  Repo_Name: 'nnperf'
+  IMAGE_NAME: 'test_cicd_img'    # Name for your Docker image
+  acrLoginServer: 'nnpacr01.azurecr.io'
+steps:
+- task: Docker@2
+  displayName: 'Build Docker image'
+  inputs:
+    command: 'build'
+    repository: '$(Repo_Name)/$(IMAGE_NAME)'
+    Dockerfile: '**/Dockerfile'
+    tags: |
+      $(Build.BuildId)
+    containerRegistry: 'nnpacr01-connect' #'YourServiceConnectionName'  # Replace with your ACR service connection
+
+- task: Docker@2
+  displayName: 'Push Docker image to ACR'
+  inputs:
+    command: 'push'
+    repository: '$(Repo_Name)/$(IMAGE_NAME)'
+    tags: |
+      $(Build.BuildId)
+    containerRegistry: 'nnpacr01-connect' #'YourServiceConnectionName'  # Replace with your ACR service connection
+
+- task: AzureCLI@2
+  displayName: 'Run Docker container'
+  inputs:
+    azureSubscription: 'testcicd-arm-connect' # 'YourArm connection in pipeline ServiceConnection'  # Replace with your ARM type service connection name to Azure subscription
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      # Retrieve ACR credentials
+      ACR_USERNAME=$(az acr credential show --name nnpacr01 --query "username" --output tsv)
+      #ACR_PASSWORD=$(az acr credential show --name nnpacr01 --query "passwords[0].value" --output tsv) 
+      
+      # delete container-group use cli:
+      # az container delete --resource-group 'nnp-rg-01-dev-westus2' --name 'mytest-container' --yes
+      # create container-group 'mytest-container'
+      
+      az container create --resource-group 'nnp-rg-01-dev-westus2' \
+      --name 'mytest-container' \
+      --image $(acrLoginServer)/$(Repo_Name)/$(IMAGE_NAME):$(Build.BuildId) \
+      --cpu 1 --memory 1.5 --ip-address public \
+      --registry-login-server nnpacr01.azurecr.io \
+      --registry-username $ACR_USERNAME \
+      --registry-password $(az acr credential show --name $(ACR_NAME) --query "passwords[0].value" -o tsv) \
+      --restart-policy Never #Always
+
+## use AzureCLI@2 which will auto handle az login and authentication with service connection.
+## check the container(eg. app.py) logs in job task details.
+- task: AzureCLI@2
+  displayName: 'Get ACI Logs'
+  inputs:
+    azureSubscription: 'testcicd-arm-connect' #'<your-azure-service-connection>'  # Your Azure service connection
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      echo "Fetching logs from Azure Container Instances..."
+      az container logs --resource-group 'nnp-rg-01-dev-westus2' --name 'mytest-container'
+
+
+#======================
