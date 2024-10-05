@@ -1,6 +1,9 @@
 # Introduction 
 TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
-So this is a test commit for trigger a test branch pipeline.
+This is a simple example to show how to build CICD pipeline with Azure devops and pipeline.
+azure git(source code) -> Dockerfile for build-> azure pipeline yaml file(task: build docker image -push docker-> ACR-> use ACR image to deploy/run Container Instance->get container logfile) 
+
+So this is a test commit for trigger a test branch pipeline(CI+CD).
 # Getting Started
 TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
 1.	Installation process
